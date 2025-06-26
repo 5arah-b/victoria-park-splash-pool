@@ -296,14 +296,45 @@
     </div>
 
     <script>
-        // Status data stored in memory (in a real implementation, this would be stored in a database)
+        // JSONBin.io API endpoint for storing status data
+        const BIN_ID = '685d312a8561e97a502c338a'; 
+        const API_KEY = '$2a$10$/Cd6A37sCBIWdR2lj3xsH.hIEm0sZYrla7Ru4KQy4tNpIi6dKFkGa';
+        const API_URL = `https://api.jsonbin.io/v3/b/${685d312a8561e97a502c338a}`;
+
+        // Status data
         let currentStatus = {
             status: 'unknown',
             timestamp: null,
             reporter: null
         };
 
-        // Load status from URL parameters (simple sharing mechanism)
+        // Load status from JSONBin
+        async function loadStatus() {
+            try {
+                const response = await fetch(API_URL + '/latest', {
+                    method: 'GET',
+                    headers: {
+                        'X-Master-Key': API_KEY
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.record && data.record.status) {
+                        currentStatus = data.record;
+                        updateDisplay();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log('Could not load status from server, checking URL params');
+            }
+            
+            // Fallback to URL parameters
+            loadStatusFromURL();
+        }
+
+        // Load status from URL parameters (fallback and sharing mechanism)
         function loadStatusFromURL() {
             const params = new URLSearchParams(window.location.search);
             const status = params.get('status');
@@ -319,13 +350,35 @@
             }
         }
 
+        // Save status to JSONBin
+        async function saveStatus(statusData) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY
+                    },
+                    body: JSON.stringify(statusData)
+                });
+                
+                return response.ok;
+            } catch (error) {
+                console.log('Could not save status to server');
+                return false;
+            }
+        }
+
         // Report status function
-        function reportStatus(status) {
+        async function reportStatus(status) {
             currentStatus = {
                 status: status,
                 timestamp: Date.now(),
-                reporter: 'you'
+                reporter: 'community'
             };
+            
+            // Save to server
+            await saveStatus(currentStatus);
             
             updateDisplay();
             showConfirmation();
@@ -382,7 +435,7 @@
 
         // Initialize the page
         document.addEventListener('DOMContentLoaded', function() {
-            loadStatusFromURL();
+            loadStatus();
             updateDisplay();
         });
     </script>
